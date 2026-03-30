@@ -3,6 +3,7 @@ const models = require('../models');
 
 // get the Cat model
 const { Cat } = models;
+const { Dog } = models;
 
 // Function to handle rendering the index page.
 const hostIndex = async (req, res) => {
@@ -99,6 +100,17 @@ const hostPage2 = (req, res) => {
 const hostPage3 = (req, res) => {
   res.render('page3');
 };
+
+async function hostPage4(req, res){
+  try{
+  const docs = await Dog.find({}).lean().exec();
+  return res.render('page4', { dogs: docs});
+  }
+  catch(err){
+    console.log(err);
+    return res.status(500).json({error: "failed to find dogs"})
+  }
+}
 
 // Get name will return the name of the last added cat.
 const getName = async (req, res) => {
@@ -276,6 +288,62 @@ const updateLast = (req, res) => {
   });
 };
 
+async function createDog(req, res) {
+  if (!req.body.name || !req.body.breed || !req.body.age) {
+    return res.status(400).json({error: "name, breed, and age are all required"});
+  }
+
+  const dogData = {
+    name: req.body.name,
+    breed: req.body.breed,
+    age: req.body.age,
+  }
+
+  const newDog = new Dog(dogData);
+
+  try {
+  await newDog.save();
+  return res.status(201).json({
+    name: newDog.name,
+    breed: newDog.breed,
+    age: newDog.age
+  })
+  }
+  catch(err) {
+    console.log(err);
+    return res.status(500).json({error: "dog creation failed"})
+  }
+}
+
+async function ageUp(req, res) {
+  if(!req.body.name){
+    return res.status(400).json({error: "name is required"});
+  }
+
+  let foundDog;
+
+  try{
+    foundDog = await Dog.findOneAndUpdate({ name: req.body.name }, {$inc: {'age': 1}}, {
+      returnDocument: 'after'
+    }).lean().exec();
+
+    if(!foundDog) {
+      return res.status(404).json({error: "dog not found"});
+    }
+
+    return res.json({
+      name: foundDog.name,
+      breed: foundDog.breed,
+      age: foundDog.age,
+    })
+  }
+  catch(err){
+    console.log(err);
+    return res.status(500).json({ error: 'dog lookup failed' });
+  }
+
+}
+
 // A function to send back the 404 page.
 const notFound = (req, res) => {
   res.status(404).render('notFound', {
@@ -289,9 +357,12 @@ module.exports = {
   page1: hostPage1,
   page2: hostPage2,
   page3: hostPage3,
+  page4: hostPage4,
   getName,
   setName,
   updateLast,
   searchName,
   notFound,
+  createDog,
+  ageUp
 };
